@@ -1,0 +1,42 @@
+﻿@model IEnumerable<Infraestructure.Entity.Models.UserEntity>
+
+@{
+    ViewData["Title"] = "Usuarios";
+}
+
+<div class="row">
+    <h1>Listado de Usuarios </h1>
+</div>
+<div class="row">
+    <a asp-action="Create" class="btn btn-primary">Nuevo Usuario</a>
+</div>
+<br />
+<div class="row">
+
+    <table class="table">
+        <thead class="thead-dark">
+            <tr>
+                <th scope="col">Nombre</th>
+                <th scope="col">Apellido</th>
+                <th scope="col">Email</th>
+                <th scope="col">Opciones</th>
+            </tr>
+        </thead>
+        <tbody>
+
+            @foreach (var user in Model)
+            {
+                <tr>
+                    <td> @user.Name</td>
+                    <td> @user.LastName</td>
+                    <td> @user.Email</td>
+                    <td>
+                        <!--asp-actio es la accion que vamos a llamar del controlador-->
+                        <a asp-action="Edit" asp-route-id="@user.IdUser" class="btn btn-success"><em>Editar</em></a>
+                        <a asp-action="Delete" asp-route-id="@user.IdUser" class="btn btn-danger"><em>Eliminar</em></a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

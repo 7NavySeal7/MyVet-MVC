@@ -1,0 +1,440 @@
+﻿@*@model IEnumerable<MyVet.Domain.Dto.PetDto>*@
+
+@{
+    ViewData["Title"] = "Mis Mascotas";
+}
+
+
+<div class="row">
+    <h1 class="text-md-center">Listado de Mascotas</h1>
+</div>
+<div class="row mb-2">
+    <button class="btn btn-primary" onclick="nuevaMascota()"><i class="fas fa-paw"></i> Nueva Mascota</button>
+</div>
+<div class="row">
+
+    <table class="table">
+        <thead class="thead-dark">
+            <tr>
+                <th scope="col">Nombre</th>
+                <th scope="col">Edad</th>
+                <th scope="col">Tipo</th>
+                <th scope="col">Sexo</th>
+                <th scope="col">Opciones</th>
+            </tr>
+        </thead>
+        @* Cuerpo de la tabla *@
+        <tbody id="cuerpoPets"></tbody>
+    </table>
+
+    <!--modal -->
+    <div class="modal fade" id="modalPet" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="idTituloModalPet">Crear Mascota</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form>
+
+                            <div class="row">
+                                <div class="col-md-6 form-group">
+                                    <label for="txtNamePet" class="col-form-label">Nombre</label>
+                                    <input placeholder="Ingrese un nombre" type="text" class="form-control" id="txtNamePet" required>
+                                </div>
+
+                                <div class="col-md-6 form-group">
+                                    <label for="txtDateBornPet" class="col-form-label">Fecha de Nacimiento</label>
+                                    <input type="date" class="form-control" id="txtDateBornPet" required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 form-group">
+                                    <label for="cmbSex" class="col-form-label">Sexo</label>
+                                    <select type="date" class="form-control" id="cmbSex" onchange="seleccionarSexo()" required>
+                                        <option>Seleccionar</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-6 form-group">
+                                    <label for="cmbTypePet" class="col-form-label">Tipo Mascota</label>
+                                    <select type="date" class="form-control" id="cmbTypePet" onchange="seleccionarTipoMascota()" required>
+                                        <option>Seleccionar</option>
+                                    </select>
+                                </div>
+
+                            </div>
+
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button title="Cancelar" type="button" class="btn btn-danger" data-dismiss="modal"><i class="far fa-window-close"></i> Cancelar</button>
+                    <button title="Guardar" type="button" class="btn btn-success" onclick="guardarPet()"><i class="far fa-save"></i> Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--end modal-->
+
+</div>
+
+@section Scripts{
+
+@{
+    await Html.RenderPartialAsync("_ValidationScriptsPartial");
+}
+<script type="text/javascript" charset="utf-8">
+
+    //Esta línea de código serializa en formato JSON el modelo
+    @*//var listaPets = JSON.parse('@Json.Serialize(@Model)');*@
+    var listaPets = [];
+    var listSexs = [];
+    var listTypePets = [];
+
+    let idSex = '';
+    let idTypePet = '';
+    let idPet = '';
+
+    //El documents ready funcion es donde ponemos todas nuestras funciones para que se ejecuten.
+    $(document).ready(function () {
+        getAllMyPets();
+        getSexs();
+        getTypePets();
+    });
+    function getAllMyPets() {
+
+        modalProcesando(true);
+            $.ajax({
+                url: '@Url.Action("GetAllMyPets", "Pet")',
+                method: 'GET',
+                dataType: "json",
+                success: function (data) {
+                    modalProcesando(false);
+                    listaPets=data;
+                    cargarGridPets(listaPets);
+                },
+                error: function (xhr, textStatus, errorThrown) {
+                        modalProcesando(false);
+                        console.error(xhr, textStatus, errorThrown);
+                    }
+            });
+    }
+
+    function cargarGridPets(data) {
+        //El simbolo (#) quiere decir que le estamos apuntando a un id en una tabla html
+        $("#cuerpoPets").html("");
+        for (i = 0; i < data.length; i++) {
+            var tr =`
+                <tr>
+                    <td>`+data[i].name +`</td>
+                    <td>`+data[i].edad +`</td>
+                    <td>`+data[i].typePet +`</td>
+                    <td>`+data[i].sexo +`</td>
+
+                    <td>
+                        <button  class="btn btn-warning" onclick="editarPet(`+ data[i].id +`)"><i class="fas fa-edit"></i><em> Editar</em></button>
+                        <button class="btn btn-danger" onclick="eliminarPet(`+ data[i].id +`)"><i class="far fa-trash-alt"></i><em> Eliminar</em></button>
+                    </td>
+                </tr>
+            `;
+            $("#cuerpoPets").append(tr);
+        }
+    }
+
+    function eliminarPet(idPet) {
+        console.log("mándo a eliminar", idPet);
+
+        Swal.fire({
+            title: 'Desea eliminar el elemento?',
+            text: "No podrás revertir esto!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Si, eliminar!',
+            cancelButtonText: 'Cancerlar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                //Le pasamos a la función un booleano verdadera para que muestre la modal.
+                modalProcesando(true);
+                //Por medio de ajax apuntamos al controlador y la accion del controlador {action},{controller}
+                $.ajax({
+                    url: '@Url.Action("DeletePet", "Pet")',
+                    method: 'DELETE',
+                    data: {
+                        idPet: idPet
+                    },
+                    dataType: "json",
+                    success: function (data) {
+                        modalProcesando(false);
+                        if (data.isSuccess) {
+
+                            listaPets = listaPets.filter(x => x.id != idPet);
+                            cargarGridPets(listaPets);
+
+                            Swal.fire(
+                                'Eliminado!',
+                                data.message,
+                                'success'
+                            );
+                        } else {
+                            Swal.fire(
+                                'Error!',
+                                data.message,
+                                'error'
+                            );
+                        }
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                        modalProcesando(false);
+                        console.error(xhr, textStatus, errorThrown);
+                    }
+                });
+            }
+        });
+    }
+
+    function nuevaMascota() {
+        //Si el idPet es igual a vacio significa que estoy creando uno nuevo.
+        //Si es distinto de vacio significa que estoy actulizando uno (un registro).
+        if (listSexs.length==0) {
+            getSexs();
+        }
+
+        if (listTypePets.length == 0) {
+            getTypePets();
+        }
+
+        //Funcion para abrir formulario =>$('exampleModel').modal({keyboard:true});
+        $('#idTituloModalPet').html("Crear Mascota");
+        $('#modalPet').modal({ keyboard: true });
+        limpiarForm();
+    }
+
+    function getSexs() {
+
+    //Por medio de ajax apuntamos al controlador y la accion del controlador {action},{controller}
+    modalProcesando(true);
+    $.ajax({
+        url: '@Url.Action("GetAllSex", "Pet")',
+        method: 'GET',
+        dataType: "json",
+        success: function (data) {
+            modalProcesando(false);
+            listSexs = data;
+            cargarSexs(listaPets);
+        },
+        error: function (xhr, textStatus, errorThrown) {
+            modalProcesando(false);
+            console.error(xhr, textStatus, errorThrown);
+        }
+    });
+}
+
+    function getTypePets() {
+
+    //Por medio de ajax apuntamos al controlador y la accion del controlador {action},{controller}
+    modalProcesando(true);
+    $.ajax({
+        url: '@Url.Action("GetAllTypePet", "Pet")',
+        method: 'GET',
+        dataType: "json",
+        success: function (data) {
+            modalProcesando(false);
+            listTypePets = data;
+            cargarTypePets(listTypePets);
+            console.log(listTypePets);
+        },
+        error: function (xhr, textStatus, errorThrown) {
+            modalProcesando(false);
+            console.error(xhr, textStatus, errorThrown);
+        }
+    });
+}
+
+    function cargarSexs(data, selected) {
+        $("#cmbSex").empty();
+        $("#cmbSex").append('<option value="" disabled selected>Seleccione un sexo</option>');
+        $.each(data, function (i, lista) {
+            if (data[i].idSex == selected) {
+                $("#cmbSex").append('<option value="' + data[i].idSex + '"selected>' + data[i].sex + '</option>');
+            }
+            else {
+                $("#cmbSex").append('<option value="' + data[i].idSex + '">' + data[i].sex + '</option>');
+            }
+        });
+    }
+
+    function cargarTypePets(data, selected) {
+        $("#cmbTypePet").empty();
+        $("#cmbTypePet").append('<option value="" disabled selected>Seleccione un Tipo Mascota</option>');
+        $.each(data, function (i, lista) {
+            if (data[i].idTypePet == selected) {
+                $("#cmbTypePet").append('<option value="' + data[i].idTypePet + '"selected>' + data[i].typePet + '</option>');
+            }
+            else {
+                $("#cmbTypePet").append('<option value="' + data[i].idTypePet + '">' + data[i].typePet + '</option>');
+            }
+        });
+}
+
+    function guardarPet() {
+
+        if (validarForm())
+        {
+            let parametro = {
+                DateBorns: $("#txtDateBornPet").val(),
+                Name: $("#txtNamePet").val(),
+                IdSex: idSex,
+                IdTypePet: idTypePet
+            }
+
+            //toastMessage('success', 'Formulario Bueno');
+            //Si el idPet es vacio, se tiene que guardar una nueva mascota., si no va actualizar.
+            if (idPet == '') {
+                modalProcesando(true);
+                $.ajax({
+                    url: '@Url.Action("InsertPet", "Pet")',
+                    method: 'POST',
+                    dataType: "json",
+                    data: parametro,
+                    success: function (data) {
+                        modalProcesando(false);
+                        console.log(listaPets);
+
+                        if (data) {
+                            //Funcion para abrir formulario =>$('exampleModel').modal({keyboard:true});
+                            $('#modalPet').modal('hide'); //=>hide: Ocultar
+                            limpiarForm();
+                            toastMessage('success', 'Mascota guardada exitosamente!');
+                            getAllMyPets();
+                        } else {
+                            toastMessage('error','Hubo un error al guardar, por favor intentarlo nuevamente!');
+                        }
+
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                        modalProcesando(false);
+                        toastMessage('error', 'Hubo un error al guardar, por favor intentarlo nuevamente!');
+                        console.error(xhr, textStatus, errorThrown);
+                    }
+                });
+            }
+            else {
+                parametro.Id = idPet;
+                modalProcesando(true);
+                $.ajax({
+                    url: '@Url.Action("UpdatePet", "Pet")',
+                    method: 'PUT',
+                    data: parametro,
+                    dataType: "json",
+                    success: function (data) {
+                        modalProcesando(false);
+                        console.log(listaPets);
+
+                        if (data) {
+                            $('#modalPet').modal('hide'); //=>hide: Ocultar
+                            limpiarForm();
+                            toastMessage('success', 'Mascota actualizada exitosamente!');
+                            getAllMyPets();
+                        } else {
+                            toastMessage('error', 'Hubo un error al guardar, por favor intentarlo nuevamente!');
+                        }
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                        modalProcesando(false);
+                        toastMessage('error', 'Hubo un error al guardar, por favor intentarlo nuevamente!');
+                        console.error(xhr, textStatus, errorThrown);
+                    }
+                });
+            }
+        }
+    }
+
+    function seleccionarSexo() {
+        //Guardar en repositorio este código
+        //El document es el DOM =>Esta funcion sirve para que me traiga por medio del id todo combo de sexo.
+        var combo = document.getElementById("cmbSex");
+        let selected = combo.options[combo.selectedIndex].value;
+        idSex = selected;
+    }
+
+    function seleccionarTipoMascota() {
+        var combo = document.getElementById("cmbTypePet");
+        let selected = combo.options[combo.selectedIndex].value;
+        idTypePet = selected;
+    }
+
+    function validarForm() {
+
+        if ($("#txtNamePet").val() == '')
+        {
+            $("#txtNamePet").focus();
+            toastMessage('warning', 'El nombre es obligatorio.');
+            return false;
+        }
+
+        if ($("#txtDateBornPet").val() == '')
+        {
+            $("#txtDateBornPet").focus();
+            toastMessage('warning', 'La fecha de nacimiento es obligatoria.');
+            return false;
+        }
+
+        if (idSex == '')
+        {
+            $("#cmbSex").focus();
+            toastMessage('warning', 'El sexo es obligatorio.');
+            return false;
+        }
+
+        if (idTypePet == '')
+        {
+            $("#cmbTypePet").focus();
+            toastMessage('warning', 'El tipo de mascota es obligatorio.');
+            return false;
+        }
+
+        return true;
+    }
+
+    function limpiarForm() {
+        $("#txtNamePet").val('');
+        $("#txtDateBornPet").val('');
+        idSex = '';
+        idTypePet = '';
+        idPet = '';
+
+        cargarSexs(listSexs);
+        cargarTypePets(listTypePets);
+    }
+
+    function editarPet(id) {
+
+        //Se le asigna el Id que proviene de de cargarGridPets.
+        idPet = id;
+        let pet = listaPets.find(x=>x.id == idPet);
+        idTypePet = pet.idTypePet;
+        idSex = pet.idSex;
+        $('#txtNamePet').val(pet.name);
+
+        //setear fechas
+        var now = new Date(pet.dateBorns);
+        var day = ("0" + now.getDate()).slice(-2);
+        var month = ("0" + (now.getMonth() + 1)).slice(-2);
+        var today = now.getFullYear() + "-" + (month) + "-" + (day);
+        $('#txtDateBornPet').val(today);
+
+        cargarSexs(listSexs, pet.idSex);
+        cargarTypePets(listTypePets, pet.idTypePet);
+
+        $('#idTituloModalPet').html("Editar Mascota");
+        $('#modalPet').modal({ keyboard: true });
+    }
+
+</script>
+}
